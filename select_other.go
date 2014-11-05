@@ -1,18 +1,9 @@
-// +build !darwin,!freebsd
+// +build !linux,!windows,!plan9,!solaris
 
-package main
+package goselect
 
-import (
-	"syscall"
-	"time"
-)
+import "syscall"
 
-func Select(n int, r, w, e *syscall.FdSet, timeout time.Duration) error {
-	var timeval *syscall.Timeval
-	if timeout >= 0 {
-		t := syscall.NsecToTimeval(timeout.Nanoseconds())
-		timeval = &t
-	}
-	_, err := syscall.Select(n, r, w, e, timeval)
-	return err
+func sysSelect(n int, r, w, e *FDSet, timeout *syscall.Timeval) error {
+	return syscall.Select(n, (*syscall.FdSet)(r), (*syscall.FdSet)(w), (*syscall.FdSet)(e), timeout)
 }

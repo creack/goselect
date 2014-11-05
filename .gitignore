@@ -24,3 +24,6 @@ _testmain.go
 *.prof
 
 go-select*
+goselect*
+example-*
+example/example
