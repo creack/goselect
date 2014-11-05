@@ -9,38 +9,11 @@ import (
 	"time"
 )
 
-const (
-	// NBBY is the amount of bits in a byte
-	NBBY = 8
-	// NFDBITS is the amount of bits per mask
-	NFDBITS = 4 * NBBY
-)
-
-// C.__DARWIN_FD_SET
-func fdSet(fd uintptr, fds *syscall.FdSet) {
-	fds.Bits[fd/NFDBITS] |= int32(1 << (fd % NFDBITS))
-}
-
-// C.__DARWIN_FD_CLR
-func fdClear(fd uintptr, fds *syscall.FdSet) {
-	fds.Bits[fd/NFDBITS] &^= int32(1 << (fd % NFDBITS))
-}
-
-// C.__darwin_fd_isset
-func fdIsSet(fd uintptr, fds *syscall.FdSet) bool {
-	return fds.Bits[fd/NFDBITS]&int32(1<<(fd%NFDBITS)) != 0
-}
-
-var nullFdSet = &syscall.FdSet{}
-
-func fdZero(fds *syscall.FdSet) {
-	copy(fds.Bits[:], (nullFdSet).Bits[:])
-}
-
 type fder interface {
 	Fd() uintptr
 }
 
+// Reader .
 type Reader struct {
 	io.Reader
 	fd           uintptr
@@ -48,6 +21,7 @@ type Reader struct {
 	pipeR, pipeW *os.File
 }
 
+// NewReader .
 func NewReader(r io.Reader) (*Reader, error) {
 	fder, ok := r.(fder)
 	if !ok {
@@ -67,22 +41,18 @@ func NewReader(r io.Reader) (*Reader, error) {
 }
 
 func (r *Reader) Read(b []byte) (int, error) {
-	var (
-		rfds syscall.FdSet
-	)
+	rFDSet := &FDSet{}
 
-	fdSet(r.fd, &rfds)
-	fdSet(r.pipeR.Fd(), &rfds)
-	// fmt.Printf("%v\n", rfds.Bits)
-	// pretty.Printf("%# v\n", pretty.Diff(rfds.Bits, rfds.Bits))
+	rFDSet.Set(r.fd)
+	rFDSet.Set(r.pipeR.Fd())
 	for {
-		if err := Select(int(r.pipeR.Fd()+1), &rfds, nil, nil, r.Timeout); err != nil {
+		if err := Select(7, rFDSet, nil, nil, r.Timeout); err != nil {
 			return 0, err
 		}
 		switch {
-		case fdIsSet(r.fd, &rfds):
+		case rFDSet.IsSet(r.fd):
 			return r.Reader.Read(b)
-		case fdIsSet(r.pipeR.Fd(), &rfds):
+		case rFDSet.IsSet(r.pipeR.Fd()):
 			r.pipeR.Read(make([]byte, 1))
 			return 0, syscall.EINTR
 		default:
@@ -92,6 +62,7 @@ func (r *Reader) Read(b []byte) (int, error) {
 	}
 }
 
+// Interrupt .
 func (r *Reader) Interrupt() {
 	// Send EOT
 	r.pipeW.Write([]byte{4})
@@ -101,7 +72,7 @@ func test2() error {
 	const count = 500
 	rrs := []io.Reader{}
 	wws := []io.Writer{}
-	rfds := &syscall.FdSet{}
+	rFDSet := &FDSet{}
 	for i := 0; i < count; i++ {
 		rr, ww, _ := os.Pipe()
 		rrs = append(rrs, rr)
@@ -118,15 +89,15 @@ func test2() error {
 
 	buf := make([]byte, 1024)
 	for i := 0; i < count; i++ {
-		fdZero(rfds)
+		rFDSet.Zero()
 		for i := 0; i < count; i++ {
-			fdSet(rrs[i].(fder).Fd(), rfds)
+			rFDSet.Set(rrs[i].(fder).Fd())
 		}
-		if err := Select(1024, rfds, nil, nil, -1); err != nil {
+		if err := Select(1024, rFDSet, nil, nil, -1); err != nil {
 			return err
 		}
 		for j := 0; j < count; j++ {
-			if fdIsSet(rrs[j].(fder).Fd(), rfds) {
+			if rFDSet.IsSet(rrs[j].(fder).Fd()) {
 				//				println(i, j)
 				if i != j {
 					return fmt.Errorf("unexpected fd ready: %d", j)
