@@ -30,7 +30,7 @@ func TestReadWriteSync(t *testing.T) {
 		time.Sleep(time.Second)
 		for i := 0; i < count; i++ {
 			fmt.Fprintf(wws[i], "hello %d", i)
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(time.Millisecond)
 		}
 	}()
 
@@ -41,7 +41,7 @@ func TestReadWriteSync(t *testing.T) {
 			rFDSet.Set(rrs[i].(fder).Fd())
 		}
 
-		if err := Select(1024, rFDSet, nil, nil, -1); err != nil {
+		if err := RetrySelect(1024, rFDSet, nil, nil, -1, 10, 10*time.Millisecond); err != nil {
 			t.Fatalf("select call failed: %s", err)
 		}
 		for j := 0; j < count; j++ {
