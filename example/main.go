@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/creack/goselect"
@@ -90,7 +89,7 @@ func (s *Select) run() {
 		if err := goselect.Select(int(max)+1, rFDSet, nil, nil, -1); err != nil {
 			log.Fatal(err)
 		}
-		for i := uintptr(0); i < syscall.FD_SETSIZE; i++ {
+		for i := uintptr(0); i < goselect.FD_SETSIZE; i++ {
 			if rFDSet.IsSet(i) {
 				println(i, "is ready")
 			}
@@ -203,7 +202,7 @@ func test4() error {
 		if err := goselect.Select(int(os.Stdin.Fd())+1, rFDSet, nil, nil, -1); err != nil {
 			return err
 		}
-		for i := uintptr(0); i < syscall.FD_SETSIZE; i++ {
+		for i := uintptr(0); i < goselect.FD_SETSIZE; i++ {
 			if rFDSet.IsSet(i) {
 				println(i, "is ready")
 			}
