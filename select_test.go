@@ -13,7 +13,7 @@ type fder interface {
 }
 
 func TestReadWriteSync(t *testing.T) {
-	const count = 500
+	const count = 50
 	rrs := []io.Reader{}
 	wws := []io.Writer{}
 	rFDSet := &FDSet{}
