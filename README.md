@@ -131,3 +131,7 @@ $> ./test_crosscompile.sh > /dev/null | sort
 [KO] windows/ppc64le
 [KO] windows/s390x
 ```
+
+## License
+
+Released under the [MIT license](LICENSE).
