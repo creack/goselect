@@ -1,4 +1,4 @@
-// +build darwin openbsd netbsd 386 arm mips mipsle
+// +build darwin openbsd netbsd 386 arm mips mipsle riscv32
 
 package goselect
 
