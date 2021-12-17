@@ -30,7 +30,7 @@ func TestReadWriteSync(t *testing.T) {
 		time.Sleep(time.Second)
 		for i := 0; i < count; i++ {
 			fmt.Fprintf(wws[i], "hello %d", i)
-			time.Sleep(time.Millisecond)
+			time.Sleep(10*time.Millisecond)
 		}
 	}()
 
