@@ -30,7 +30,7 @@ func TestReadWriteSync(t *testing.T) {
 		time.Sleep(time.Second)
 		for i := 0; i < count; i++ {
 			fmt.Fprintf(wws[i], "hello %d", i)
-			time.Sleep(10*time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 		}
 	}()
 
@@ -56,5 +56,94 @@ func TestReadWriteSync(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestSelect_readEmptyPipe(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := r.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	rFDSet := &FDSet{}
+	rFDSet.Set(r.Fd())
+	max := r.Fd()
+	if err := Select(int(max+1), rFDSet, nil, nil, 10*time.Millisecond); err != nil {
+		t.Fatalf("select call failed: %s", err)
+	}
+
+	if rFDSet.IsSet(r.Fd()) {
+		t.Fatal("Nothing written, the pipe should not have been ready for reading")
+	}
+}
+
+func TestSelect_readClosedPipe(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// This should make select tell us the read end is ready for reading
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	rFDSet := &FDSet{}
+	rFDSet.Set(r.Fd())
+	max := r.Fd()
+	// "-1" means wait forever. We should return immediately anyway, so that
+	// should be fine.
+	if err := Select(int(max+1), rFDSet, nil, nil, -1); err != nil {
+		t.Fatalf("select call failed: %s", err)
+	}
+
+	if !rFDSet.IsSet(r.Fd()) {
+		t.Fatal("Closing the write end should have made the read end ready for reading")
+	}
+}
+
+func TestSelect_readWrittenPipe(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := r.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// This should make select tell us the read end is ready for reading
+	if _, err := w.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+
+	rFDSet := &FDSet{}
+	rFDSet.Set(r.Fd())
+	max := r.Fd()
+	// "-1" means wait forever. We should return immediately anyway, so that
+	// should be fine.
+	if err := Select(int(max+1), rFDSet, nil, nil, -1); err != nil {
+		t.Fatalf("select call failed: %s", err)
+	}
+
+	if !rFDSet.IsSet(r.Fd()) {
+		t.Fatal("The pipe has bytes, should have been ready for reading")
 	}
 }
