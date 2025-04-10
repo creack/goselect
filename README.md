@@ -1,6 +1,8 @@
 # go-select
 
-select(2) implementation in Go
+select(2) implementation in Go.
+
+Keeping the repository for reference, but please, consider moving to something more modern and portable than select(2).
 
 ## Supported platforms
 
